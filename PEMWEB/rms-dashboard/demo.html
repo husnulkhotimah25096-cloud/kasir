@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RMS — Retail Management System Demo</title>
+  <link rel="manifest" href="manifests/manifest.json">
+  <link rel="stylesheet" href="styles/main.css">
+  <!-- Library eksternal (harus dimuat sebelum module script) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+  <div class="app" id="root">
+    <nav class="navbar">
+      <div class="logo">RMS</div>
+      <div class="nav-links">
+        <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+        <button class="tab-btn" data-tab="pos">Kasir (POS)</button>
+        <button class="tab-btn" data-tab="inventory">Stok &amp; Opname</button>
+        <button class="tab-btn" data-tab="finance">Keuangan &amp; Audit</button>
+        <button class="tab-btn" data-tab="procurement">Pembelian</button>
+        <button class="tab-btn" data-tab="eventlogs">Event Logs</button>
+      </div>
+      <div style="margin-left: auto; align-items: center; display: flex; gap: 0.5rem;">
+        <button class="btn btn-small" style="background: var(--color-primary); color: white;" id="theme-toggle" data-action="theme-toggle">🌙</button>
+        <!-- PWA Install Button -->
+        <button id="install-pwa" class="btn btn-small" style="background: var(--color-success); color: white; display: none;">
+          ⬇️ Install Aplikasi
+        </button>
+      </div>
+    </nav>
+
+    <main class="main-flex">
+      <div class="content">
+        <h2 class="page-title">Dashboard Analitik</h2>
+
+        <!-- ===== DASHBOARD ===== -->
+        <section class="tab-section" id="section-dashboard">
+          <div style="margin-bottom: 1rem;">
+            <select id="period-filter">
+              <option value="7d">7 hari</option>
+              <option value="30d" selected>30 hari</option>
+              <option value="90d">90 hari</option>
+            </select>
+          </div>
+
+          <div class="kpi-grid"></div>
+
+          <div style="margin: 1rem 0; display: flex; gap: 0.5rem;">
+            <button class="btn btn-small" onclick="exportDashboardPDF()">Export PDF</button>
+            <button class="btn btn-small" onclick="exportDashboardExcel()">Export Excel</button>
+          </div>
+
+          <div class="chart-wrapper">
+            <h3>Trend Penjualan</h3>
+            <canvas id="sales-trend-chart"></canvas>
+          </div>
+
+          <div class="chart-wrapper">
+            <h3>Top Selling Products</h3>
+            <canvas id="top-products-chart"></canvas>
+          </div>
+        </section>
+
+        <!-- ===== POS ===== -->
+        <section class="tab-section hidden" id="section-pos">
+          <div style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
+            <div style="flex: 2; min-width: 280px;">
+              <h3>Produk</h3>
+              <div class="product-list"></div>
+            </div>
+            <div style="flex: 1; min-width: 260px;">
+              <h3>Keranjang</h3>
+              <div class="cart-items"><p class="text-muted">Keranjang kosong</p></div>
+              <div class="cart-total">
+                <div>Subtotal: <span class="subtotal">Rp 0</span></div>
+                <div>PPN 10%: <span class="tax">Rp 0</span></div>
+                <div><strong>Total: <span class="grandtotal">Rp 0</span></strong></div>
+              </div>
+              <select class="payment-method" style="margin: 0.75rem 0; width: 100%;">
+                <option value="cash">Tunai</option>
+                <option value="qris">QRIS</option>
+                <option value="card">Kartu</option>
+              </select>
+              <button class="btn" style="width: 100%;" onclick="processSaleTransaction()">Bayar</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===== INVENTORY ===== -->
+        <section class="tab-section hidden" id="section-inventory">
+          <table class="stock-table" style="width: 100%;">
+            <thead>
+              <tr><th>Produk</th><th>Gudang</th><th>Stok</th><th>Min. Stok</th><th>Aksi</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </section>
+
+        <!-- ===== FINANCE ===== -->
+        <section class="tab-section hidden" id="section-finance">
+          <table class="journal-table" style="width: 100%;">
+            <thead>
+              <tr><th>Tanggal</th><th>Referensi</th><th>Deskripsi</th><th>Debit</th><th>Kredit</th><th>Status</th><th>Aksi</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </section>
+
+        <!-- ===== PROCUREMENT ===== -->
+        <section class="tab-section hidden" id="section-procurement">
+          <div id="procurement-root"></div>
+        </section>
+
+        <!-- ===== EVENT LOGS ===== -->
+        <section class="tab-section hidden" id="section-eventlogs">
+          <div style="max-height: 60vh; overflow-y: auto;">
+            <div class="log-container"></div>
+          </div>
+        </section>
+      </div>
+
+      <aside style="width: 280px; margin-left: 2rem;">
+        <div style="background: var(--color-surface); padding: 1.5rem; border-radius: 8px; height: fit-content;">
+          <h4 style="font-size: 1rem; margin-bottom: 1rem;">Quick Actions</h4>
+          <button style="width: 100%; padding: 0.75rem; margin-bottom: 0.5rem; background: #e2e8f0; border: none; border-radius: 6px; cursor: pointer;">Setting</button>
+          <button style="width: 100%; padding: 0.75rem; margin-bottom: 0.5rem; background: #e2e8f0; border: none; border-radius: 6px; cursor: pointer;" onclick="exportDashboardExcel()">Export Data</button>
+          <button style="width: 100%; padding: 0.75rem; background: #e2e8f0; border: none; border-radius: 6px; cursor: pointer;">Bantuan</button>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <!-- Logika utama aplikasi (tab, data, chart, POS, WebSocket) -->
+  <script type="module" src="scripts/app.js"></script>
+
+  <!-- Export & PWA -->
+  <script type="module">
+    const toast = (msg, type) => window.showToast?.(msg, type);
+
+    function getDashboardMetrics() {
+      const text = (id, fallback) => document.getElementById(id)?.textContent.trim() || fallback;
+      return [
+        ['Total Omzet', text('kpi-total-omzet', '-')],
+        ['Margin Rata-rata', text('kpi-margin', '-')],
+        ['Stok Warning', text('kpi-stok-warning', '-')],
+        ['Transaksi Pending/Sync', text('kpi-transaksi-pending', '-')],
+        ['Tanggal', new Date().toLocaleDateString('id-ID')]
+      ];
+    }
+
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function exportDashboardPDF() {
+      const metrics = getDashboardMetrics();
+      const jsPDF = window.jspdf?.jsPDF;
+
+      if (!jsPDF) {
+        const text = 'RMS Dashboard Export\n' + metrics.map(([k, v]) => `${k}: ${v}`).join('\n');
+        downloadBlob(new Blob([text], { type: 'text/plain' }), 'rms-dashboard-export.txt');
+        toast('jsPDF tidak tersedia, file teks dibuat', 'info');
+        return;
+      }
+
+      const doc = new jsPDF();
+      doc.setTextColor('#1e293b');
+      doc.setFontSize(18);
+      doc.text('RMS - Retail Management System', 14, 20);
+      doc.setFontSize(12);
+      metrics.forEach(([k, v], i) => doc.text(`${k}: ${v}`, 14, 32 + i * 10));
+      doc.text('Generated by RMS PWA', 14, 32 + metrics.length * 10 + 6);
+
+      doc.save('rms-dashboard.pdf');
+      toast('PDF berhasil diekspor', 'success');
+    }
+
+    function exportDashboardExcel() {
+      // CSV (dengan BOM) langsung terbuka di Excel tanpa peringatan format
+      const rows = [['Metrik', 'Nilai'], ...getDashboardMetrics()];
+      const csv = '\uFEFF' + rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+      downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), 'rms-dashboard.csv');
+      toast('File Excel (CSV) berhasil diunduh', 'success');
+    }
+
+    // onclick="..." di HTML butuh fungsi global
+    window.exportDashboardPDF = exportDashboardPDF;
+    window.exportDashboardExcel = exportDashboardExcel;
+
+    // --- PWA Install Flow ---
+    let deferredPrompt = null;
+    const installBtn = document.getElementById('install-pwa');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e; // event-nya sendiri, bukan e.detail
+      if (installBtn) installBtn.style.display = 'block';
+    });
+
+    installBtn?.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      installBtn.style.display = 'none';
+    });
+
+    // Sembunyikan tombol jika sudah terinstall
+    window.addEventListener('appinstalled', () => {
+      deferredPrompt = null;
+      if (installBtn) installBtn.style.display = 'none';
+    });
+  </script>
+</body>
+</html>

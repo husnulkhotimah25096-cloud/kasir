@@ -1,0 +1,64 @@
+name: RMS — Continuous Integration
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test-and-build:
+    runs-on: windows-latest
+    
+    steps:
+      # --- Setup ---
+      
+      - name: Install Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          
+      - name: Cache node_modules
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+      
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        
+      # --- Dependency Installation ---
+      
+      - name: Install dependencies
+        run: npm ci
+        
+      # --- Lint ---
+      
+      - name: Run lint
+        run: npm run lint --if-present
+        
+      # --- Test ---
+      
+      - name: Run tests
+        run: npm test --if-present
+        
+      # --- Build ---
+      
+      - name: Build application
+        run: npm run build --if-present
+        
+      # --- Verify ---
+      
+      - name: Verify application structure
+        run: |
+          echo "Checking critical files..."
+          ls -r index.html styles/main.css scripts/app.js prisma/schema.prisma
+          echo "✅ All critical files present"
+          
+      # --- Deploy ---
+      
+      - name: Deploy to production
+        if: github.ref == 'refs/heads/main'
+        run: echo "Deployment script would run here"

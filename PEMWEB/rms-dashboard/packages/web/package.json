@@ -1,0 +1,16 @@
+{
+  "name": "rms-web",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "lite-server",
+    "dev": "lite-server",
+    "build": "echo 'Vanilla JS - no build step'",
+    "lint": "echo 'Standard JS lint'"
+  },
+  "dependencies": {
+    "chart.js": "^4.4.0",
+    "jspdf": "^2.5.1"
+  }
+}

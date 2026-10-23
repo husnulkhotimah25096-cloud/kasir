@@ -1,0 +1,524 @@
+prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Store {
+  id          Int           @id @default(autoincrement)
+  name        String        @unique
+  address     String
+  phone       String
+  email       String        @unique
+  status      String        @default("ACTIVE")
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  users       User[]
+  transactions Transaction[]
+}
+
+model User {
+  id          Int           @id @default(autoincrement)
+  name        String
+  email       String        @unique
+  password    String
+  role        Role          @default(KASIR)
+  storeId     Int?
+  store       Store?        @relation(fields: [storeId], references: [id])
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  auditLogs   AuditLog[]
+  transactions Transaction[]
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  KASIR
+  GUDANG
+  FINANCE
+  PEMBELIAN
+}
+
+model AuditLog {
+  id          Int           @id @default(autoincrement)
+  userId      Int
+  user        User?         @relation(fields: [userId], references: [id])
+  action      String        // CREATE, UPDATE, VOID, CANCEL
+  entity      String        // PRODUCT, STOCK, ORDER, PAYMENT, RECEIPT
+  entityId    Int
+  changes     Json          // JSON detail of changes
+  timestamp   DateTime      @default(now())
+  ipAddress   String?
+  userAgent   String?
+
+  @@index([userId, timestamp])
+}
+
+model Category {
+  id          Int           @id @default(autoincrement)
+  name        String        @unique
+  description String?
+  parentId    Int?          // For sub-categories
+  parent      Category?     @relation(fields: [parentId], references: [id])
+  storeId     Int
+  store       Store         @relation(fields: [storeId], references: [id])
+  products    Product[]
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model Product {
+  id          Int           @id @default(autoincrement)
+  sku         String        @unique
+  name        String
+  description String?
+  price       Decimal(10, 2)
+  cost        Decimal(10, 2)
+  barcode     String?
+  image       String?
+  categoryId  Int?
+  category    Category?     @relation(fields: [categoryId], references: [id])
+  storeId     Int
+  store       Store         @relation(fields: [storeId], references: [id])
+  variants    ProductVariant[]
+  journalLines JournalLine[]
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model ProductVariant {
+  id          Int           @id @default(autoincrement)
+  productId   Int
+  product     Product       @relation(fields: [productId], references: [id])
+  sku         String        @unique
+  size        String?
+  color       String?
+  weight      Decimal(8, 2)?
+  barcode     String?
+  priceAdjust Decimal(10, 2) @default(0)
+  stock       Int           @default(0)
+
+  @@index([productId])
+}
+
+model Warehouse {
+  id          Int           @id @default(autoincrement)
+  name        String        @unique
+  code        String        @unique
+  address     String?
+  phone       String?
+  status      String        @default("ACTIVE")
+  storeId     Int
+  store       Store         @relation(fields: [storeId], references: [id])
+
+  products    WarehouseProduct[]
+  transfers   StockTransfer[]
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model WarehouseProduct {
+  id          Int           @id @default(autoincrement)
+  warehouseId Int
+  warehouse   Warehouse     @relation(fields: [warehouseId], references: [id])
+  productId   Int
+  product     Product       @relation(fields: [productId], references: [id])
+  quantity    Int           @default(0)
+  reserved    Int           @default(0)
+
+  @@unique([warehouseId, productId])
+  @@index([warehouseId])
+}
+
+model Stock {
+  id              Int           @id @default(autoincrement)
+  productVariantId Int          @unique
+  productVariant  ProductVariant @relation(fields: [productVariantId], references: [id])
+  warehouseId     Int?          // Null = store-wide, specific warehouse
+  warehouse       Warehouse?     @relation(fields: [warehouseId], references: [id])
+  quantity        Int           @default(0)
+  reserved        Int           @default(0) // Reserved for orders
+  version         Int           @default(0) // Optimistic locking version
+  lastStockOpname DateTime?     // Last stock counting date
+  opnameDeviation Decimal(10, 2) // Deviation % from physical count
+
+  @@index([warehouseId, productVariantId])
+  @@index([productVariantId])
+}
+
+model PurchaseOrder {
+  id              Int           @id @default(autoincrement)
+  poNumber        String        @unique
+  supplierId      Int?
+  supplier        Supplier?
+  status          PurchaseOrderStatus   @default(PENDING)
+  totalAmount     Decimal(12, 2)
+  discount        Decimal(10, 2) @default(0)
+  tax             Decimal(10, 2) @default(0)
+  totalPaid       Decimal(12, 2) @default(0)
+  expectedDelivery DateTime?
+  notes           String?
+  createdBy       Int
+  createdByUser   User?       @relation(fields: [createdBy], references: [id])
+  poItems         PoItem[]
+  received        Boolean        @default(false)
+  receivedAt      DateTime?
+  idempotencyKey  String        @unique  // FASE 1: Duplicate Payment Webhook idempotency
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+enum PurchaseOrderStatus {
+  PENDING
+  APPROVED
+  RECEIVED
+  CANCELLED
+  VOIDED
+}
+
+model Supplier {
+  id          Int           @id @default(autoincrement)
+  name        String
+  code        String        @unique
+  contactName String?
+  phone       String
+  email       String?
+  address     String?
+  status      String        @default("ACTIVE")
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  purchaseOrders PurchaseOrder[]
+}
+
+model PoItem {
+  id          Int           @id @default(autoincrement)
+  purchaseOrderId Int
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  productVariantId Int
+  productVariant ProductVariant @relation(fields: [productVariantId], references: [id])
+  quantity    Int
+  unitPrice   Decimal(10, 2)
+  total       Decimal(12, 2)
+
+  @@index([purchaseOrderId])
+}
+
+model GoodsReceipt {
+  id              Int           @id @default(autoincrement)
+  grNumber        String        @unique
+  purchaseOrderId Int
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  supplierId      Int
+  supplier        Supplier?
+  status          GrStatus      @default(PENDING)
+  receivedBy      Int
+  receivedByUser  User?       @relation(fields: [receivedBy], references: [id])
+  receivedAt      DateTime      @default(now())
+  notes           String?
+  grItems         GrItem[]
+
+  @@index([purchaseOrderId])
+  @@index([status])
+}
+
+enum GrStatus {
+  PENDING
+  RECEIVED
+  CANCELLED
+}
+
+model GrItem {
+  id          Int           @id @default(autoincrement)
+  goodsReceiptId Int
+  goodsReceipt  GoodsReceipt @relation(fields: [goodsReceiptId], references: [id])
+  productVariantId Int
+  productVariant ProductVariant @relation(fields: [productVariantId], references: [id])
+  quantity      Int
+  unitPrice     Decimal(10, 2)
+  total         Decimal(12, 2)
+  qualityStatus String        @default("PASS")
+
+  @@index([goodsReceiptId])
+}
+
+model Order {
+  id              Int           @id @default(autoincrement)
+  orderNumber     String        @unique
+  customerName    String?
+  customerEmail   String?
+  customerPhone   String?
+  subtotal        Decimal(12, 2)
+  discount        Decimal(10, 2) @default(0)
+  tax             Decimal(10, 2) @default(0)
+  total           Decimal(12, 2)
+  status          OrderStatus   @default(PENDING)
+  paymentStatus   PaymentStatus @default(PENDING)
+  paymentId       String?       // Payment gateway reference
+  notes           String?
+  createdBy       Int
+  createdByUser   User?       @relation(fields: [createdBy], references: [id])
+  orderItems      OrderItem[]
+  paymentAttempts Json[]        // Payment gateway attempt history
+  idempotencyKey  String        @unique  // FASE 1: Duplicate Payment Webhook idempotency
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  READY
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+model OrderItem {
+  id          Int           @id @default(autoincrement)
+  orderId     Int
+  order       Order         @relation(fields: [orderId], references: [id])
+  productVariantId Int
+  productVariant ProductVariant @relation(fields: [productVariantId], references: [id])
+  quantity    Int
+  price       Decimal(10, 2) // Price at time of purchase
+  total       Decimal(12, 2)
+
+  @@index([orderId])
+}
+
+model Payment {
+  id              Int           @id @default(autoincrement)
+  orderId         Int
+  order         Order         @relation(fields: [orderId], references: [id])
+  amount          Decimal(12, 2)
+  paymentMethod   String        // CASH, CARD, TRANSFER, E-WALLET
+  gateway         String        // STRIPE, MIDTRANS, etc.
+  gatewayResponse Json?         // Raw gateway response
+  status          PaymentStatus @default(PENDING)
+  transactionId   String?       // Gateway transaction ID
+  failureReason   String?
+  paidAt          DateTime?
+  createdAt       DateTime      @default(now())
+
+  @@index([orderId])
+}
+
+// FASE 1: Double-entry bookkeeping models
+
+model Account {
+  id          Int           @id @default(autoincrement)
+  code        String        @unique    // Account code (1000=Asset, 2000=Liability, etc.)
+  name        String
+  type        AccountType
+  subtype     AccountSubtype?
+  balance     Decimal(15, 2) @default(0)
+  currency    String        @default("IDR")
+  active      Boolean       @default(true)
+  parentId    Int?          // For sub-accounts
+  parent      Account?      @relation(fields: [parentId], references: [id])
+  storeId     Int
+  store       Store         @relation(fields: [storeId], references: [id])
+  journalLines JournalLine[]
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  INCOME
+  EXPENSE
+}
+
+enum AccountSubtype {
+  CASH
+  BANK
+  ACCOUNTS_RECEIVABLE
+  ACCOUNTS_PAYABLE
+  SALES
+  COGS
+  EXPENSE_GENERAL
+  EXPENSE_OPERATIONAL
+}
+
+model JournalEntry {
+  id          Int           @id @default(autoincrement)
+  referenceType   String   // PO, GR, ORDER, PAYMENT
+  referenceId     Int    // ID of the referencing record
+  description     String
+  reference       String   // e.g., "PO-001", "GR-005"
+  status          String   // POSTED, DRAFT, CANCELLED
+  postedAt        DateTime @default(now())
+  createdBy       Int
+  createdByUser   User? @relation(fields: [createdBy], references: [id])
+  storeId         Int
+  store           Store   @relation(fields: [storeId], references: [id])
+  journalLines    JournalLine[]
+
+  @@index([referenceType, referenceId])
+  @@index([status])
+}
+
+model JournalLine {
+  id              Int           @id @default(autoincrement)
+  journalEntryId  Int
+  journalEntry    JournalEntry @relation(fields: [journalEntryId], references: [id])
+  accountId       Int
+  account         Account       @relation(fields: [accountId], references: [id])
+  debit           Decimal(15, 2) @default(0)
+  credit          Decimal(15, 2) @default(0)
+  description     String
+  balanceBefore   Decimal(15, 2)
+  balanceAfter    Decimal(15, 2)
+  lineOrder       Int           // For ordering lines within entry
+
+  @@unique([journalEntryId, lineOrder])
+  @@index([accountId])
+  @@index([journalEntryId])
+}
+
+// FASE 1: Analytics aggregation models
+
+model DailySalesAggr {
+  id          Int           @id @default(autoincrement)
+  date        DateTime      @unique
+  storeId     Int
+  store       Store         @relation(fields: [storeId], references: [id])
+  totalSales  Decimal(12, 2) @default(0)
+  totalOrders Int           @default(0)
+  totalQuantity Int         @default(0)
+  paymentMethods Json        // Breakdown by payment method
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([date, storeId])
+}
+
+model TopProductAggr {
+  id          Int           @id @default(autoincrement)
+  storeId     Int
+  store       Store         @relation(fields: [storeId], references: [id])
+  productVariantId Int
+  productVariant ProductVariant @relation(fields: [productVariantId], references: [id])
+  productName String
+  productSku  String
+  totalSold   Int           @default(0)
+  totalRevenue Decimal(12, 2) @default(0)
+  periodType  String        // DAILY, WEEKLY, MONTHLY
+  periodStart DateTime
+  periodEnd   DateTime
+
+  @@unique([storeId, productVariantId, periodType, periodStart])
+  @@index([storeId, totalSold DESC])
+}
+
+// FASE 1: Stock Transfer between warehouses
+
+model StockTransfer {
+  id              Int           @id @default(autoincrement)
+  transferNumber  String        @unique
+  fromWarehouse   Warehouse
+  toWarehouse     Warehouse
+  status          TransferStatus @default(PENDING)
+  totalQuantity   Int           @default(0)
+  totalCost       Decimal(12, 2) @default(0) // Weighted average cost
+  transferredBy   Int
+  transferredByUser User?   @relation(fields: [transferredBy], references: [id])
+  transferDate    DateTime      @default(now())
+  completedAt     DateTime?
+  notes           String?
+  journalEntry    JournalEntry? // Reversal/transfer journal entry
+
+  @@index([fromWarehouse, status])
+  @@index([toWarehouse, status])
+  @@index([transferDate])
+}
+
+enum TransferStatus {
+  PENDING
+  IN_TRANSIT
+  RECEIVED
+  CANCELLED
+}
+
+// FASE 1: Stock Opname / Inventory Count
+
+model StockOpname {
+  id              Int           @id @default(autoincrement)
+  opnameNumber    String        @unique
+  warehouseId     Int?          // Null = whole store
+  warehouse       Warehouse?    @relation(fields: [warehouseId], references: [id])
+  status          OpnameStatus  @default(PENDING)
+  targetDeviation Decimal(5, 2) @default(10) // Alert if deviation > %
+  countedBy       Int
+  countedByUser   User?       @relation(fields: [countedBy], references: [id])
+  countDate       DateTime      @default(now())
+  completedAt     DateTime?
+  notes           String?
+  opnameItems     OpnameItem[]
+
+  @@index([warehouseId, status])
+  @@index([countDate])
+}
+
+enum OpnameStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  APPROVED
+  REJECTED
+}
+
+model OpnameItem {
+  id          Int           @id @default(autoincrement)
+  stockId     Int
+  stock       Stock
+  warehouseId Int?
+  warehouse   Warehouse?
+  productVariantId Int
+  productVariant ProductVariant @relation(fields: [productVariantId], references: [id])
+  expectedQty Int         // Based on system before count
+  actualQty   Int         // Physical count
+  deviation   Decimal(10, 2) // % deviation
+  status      String       // OK, ADJUSTMENT, DISCREPANCY
+  adjustmentQty Int        // Quantity to adjust
+
+  @@index([stockId])
+  @@index([productVariantId])
+}
+
+// FASE 1: Idempotency key collision prevention - composite format
+
+model IdempotencyKey {
+  id          Int           @id @default(autoincrement)
+  key         String        @unique      // Composite key: storeId:userId:timestamp:uuid
+  entityType  String        // PURCHASE_ORDER, SALE, PAYMENT
+  entityId    Int
+  createdAt   DateTime      @default(now())
+  expiresAt   DateTime      // Auto-expiry after 24h
+
+  @@index([entityType, entityId])
+  @@index([expiresAt])
+}

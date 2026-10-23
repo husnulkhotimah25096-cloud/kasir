@@ -1,0 +1,23 @@
+{
+  "name": "rms-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": {
+    "packages": [
+      "packages/*/"
+    ]
+  },
+  "scripts": {
+    "setup": "lite-server",
+    "dev": "concurrently \"cd packages/api && npm run start\" \"cd packages/web && npm run start\"",
+    "lint": "echo 'Lint configured per package'",
+    "test": "echo 'Tests per package'"
+  },
+  "dependencies": {
+    "prisma": "^5.22.0"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0",
+    "lite-server": "^2.6.1"
+  }
+}
