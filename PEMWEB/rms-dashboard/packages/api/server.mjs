@@ -7,6 +7,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
+import { authRoutes } from './src/auth.routes.mjs';
 
 export const prisma = new PrismaClient();
 const app = express();
@@ -25,6 +26,7 @@ api.get('/health', async (_req, res, next) => {
   }
 });
 
+api.use('/auth', authRoutes(prisma));
 app.use('/api/v1', api);
 
 app.use((_req, res) => res.status(404).json({ message: 'Endpoint tidak ditemukan' }));
