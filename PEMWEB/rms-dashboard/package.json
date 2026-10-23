@@ -7,7 +7,7 @@
   ],
   "scripts": {
     "setup": "lite-server",
-    "dev": "concurrently \"cd packages/api && npm run start\" \"cd packages/web && npm run start\"",
+    "dev": "concurrently \"npm --prefix packages/api run start\" \"lite-server\"",
     "lint": "echo 'Lint configured per package'",
     "test": "echo 'Tests per package'"
   },
