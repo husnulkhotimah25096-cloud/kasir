@@ -33,6 +33,7 @@ model User {
   id             Int             @id @default(autoincrement())
   name           String
   email          String          @unique
+  username       String          @unique
   password       String
   role           Role            @default(KASIR)
   storeId        Int?
@@ -118,7 +119,7 @@ model ProductVariant {
   barcode        String?
   priceAdjust    Decimal          @default(0) @db.Decimal(10, 2)
   stock          Int              @default(0)
-  Stock          Stock?
+  Stock          Stock[]
   PoItem         PoItem[]
   GrItem         GrItem[]
   OrderItem      OrderItem[]
@@ -165,17 +166,18 @@ model WarehouseProduct {
 
 model Stock {
   id               Int            @id @default(autoincrement())
-  productVariantId Int            @unique
+  productVariantId Int
   productVariant   ProductVariant @relation(fields: [productVariantId], references: [id])
-  warehouseId      Int? // Null = store-wide, specific warehouse
-  warehouse        Warehouse?     @relation(fields: [warehouseId], references: [id])
+  warehouseId      Int // Null = store-wide, specific warehouse
+  warehouse        Warehouse      @relation(fields: [warehouseId], references: [id])
   quantity         Int            @default(0)
   reserved         Int            @default(0) // Reserved for orders
   version          Int            @default(0) // Optimistic locking version
   lastStockOpname  DateTime? // Last stock counting date
-  opnameDeviation  Decimal        @db.Decimal(10, 2) // Deviation % from physical count
+  opnameDeviation  Decimal        @default(0) @db.Decimal(10, 2) // Deviation % from physical count
   OpnameItem       OpnameItem[]
 
+  @@unique([productVariantId, warehouseId])
   @@index([warehouseId, productVariantId])
   @@index([productVariantId])
 }
@@ -281,6 +283,8 @@ model GrItem {
 model Order {
   id              Int           @id @default(autoincrement())
   orderNumber     String        @unique
+  storeId         Int?
+  channel         String        @default("POS")
   customerName    String?
   customerEmail   String?
   customerPhone   String?
