@@ -98,3 +98,9 @@ input:focus, select:focus, textarea:focus {
   .tab-btn { white-space: nowrap; }
   .product-list { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
 }
+/* Sembunyikan tab yang tidak aktif */
+.hidden { display: none !important; }
+
+/* Selaraskan warna dengan palet pink */
+.chart-wrapper, .kpi-grid > *, .kpi-card { background: var(--color-surface) !important; color: var(--color-text); }
+.quick-actions .btn, aside .btn { background: var(--color-surface); color: var(--color-text); border: 1px solid var(--line); }
