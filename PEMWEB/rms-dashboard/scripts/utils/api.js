@@ -219,6 +219,16 @@ export async function healthCheck() {
 
 // Response handler
 async function handleResponse(response) {
+  if (response.status === 401) {
+    // Hanya anggap "sesi habis" kalau sebelumnya memang ada token.
+    // Kalau tidak ada token (misalnya salah password saat login), biarkan error biasa.
+    const hadToken = currentToken || localStorage.getItem('rms_token');
+    if (hadToken) {
+      clearAuthToken();
+      globalThis.dispatchEvent(new CustomEvent('rms:session-expired'));
+      throw new Error('Sesi habis, silakan login lagi');
+    }
+  }
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(
