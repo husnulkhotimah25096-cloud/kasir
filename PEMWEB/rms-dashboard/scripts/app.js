@@ -27,6 +27,7 @@ import * as Finance from './modules/finance.js';
 import * as Procurement from './modules/procurement.js';
 import * as EventLogs from './modules/event-logs.js';
 import { showLogin, setupAccountMenu } from './modules/login.js';
+import { logout } from './utils/auth.js';
 
 let currentTab = 'dashboard';
 let currentTheme = loadTheme();
@@ -344,6 +345,16 @@ function startSession(user) {
   if (navigator.onLine) POS.syncOfflineQueue();
   fetchTabData(currentTab);
 }
+
+// Sesi habis (token ditolak server dengan 401): keluar lalu kembali ke login
+let sessionExpiredHandled = false;
+window.addEventListener('rms:session-expired', () => {
+  if (sessionExpiredHandled) return; // beberapa request bisa gagal bersamaan
+  sessionExpiredHandled = true;
+  logout();
+  showToast('Sesi habis, silakan login lagi', 'info');
+  setTimeout(() => location.reload(), 1200);
+});
 
 document.addEventListener('DOMContentLoaded', () => {
   const themeToggle = document.querySelector('button[data-action="theme-toggle"]');
