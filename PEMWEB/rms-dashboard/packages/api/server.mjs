@@ -10,6 +10,7 @@ import { PrismaClient } from '@prisma/client';
 import { authRoutes } from './src/auth.routes.mjs';
 import { inventoryRoutes } from './src/inventory.routes.mjs';
 import { salesRoutes } from './src/sales.routes.mjs';
+import { dashboardRoutes } from './src/dashboard.routes.mjs';
 
 export const prisma = new PrismaClient();
 const app = express();
@@ -31,6 +32,7 @@ api.get('/health', async (_req, res, next) => {
 api.use('/auth', authRoutes(prisma));
 api.use(inventoryRoutes(prisma));
 api.use(salesRoutes(prisma));
+api.use(dashboardRoutes(prisma));
 app.use('/api/v1', api);
 
 app.use((_req, res) => res.status(404).json({ message: 'Endpoint tidak ditemukan' }));
