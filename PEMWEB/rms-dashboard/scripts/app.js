@@ -336,7 +336,10 @@ function startSession(user) {
   setAuthToken(user.token || '');
   setupAccountMenu();
 
-  initWebSocket(window.RMS_CONFIG?.wsUrl || 'ws://localhost:8000');
+// WebSocket hanya dinyalakan kalau alamatnya dikonfigurasi (server Express belum menyediakan /ws)
+if (window.RMS_CONFIG?.wsUrl) {
+  initWebSocket(window.RMS_CONFIG.wsUrl);
+}
   onStockUpdate(updateStockUI);
   onOrderStatus(updateOrderUI);
   onPaymentUpdate(updatePaymentUI);
