@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Katalog Produk - Toko Kami</title>
+  <style>
+    :root {
+      --bg: #fdf2f8; --card: #ffffff; --text: #3b0a24; --muted: #8a5a73;
+      --pink: #ec4899; --pink-soft: #fce7f3; --ok: #15803d; --bad: #b91c1c;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #200915; --card: #2e1220; --text: #fce7f3; --muted: #d6a3bd;
+              --pink: #f472b6; --pink-soft: #4a1d33; --ok: #4ade80; --bad: #f87171; }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); }
+    header { display: flex; justify-content: space-between; align-items: center;
+             padding: 1rem 1.5rem; background: var(--card); border-bottom: 1px solid var(--pink-soft); }
+    header h1 { margin: 0; font-size: 1.25rem; color: var(--pink); }
+    header a { color: var(--muted); font-size: .85rem; text-decoration: none; }
+    header a:hover { color: var(--pink); }
+    main { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
+    .tools { display: flex; gap: .75rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    .tools input, .tools select { padding: .6rem .8rem; border-radius: 10px; font: inherit;
+      border: 1px solid var(--pink-soft); background: var(--card); color: var(--text); }
+    .tools input { flex: 1; min-width: 200px; }
+    .grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+    .card { background: var(--card); border-radius: 14px; overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,.08); display: flex; flex-direction: column; }
+    .thumb { aspect-ratio: 4 / 3; background: var(--pink-soft); display: flex;
+             align-items: center; justify-content: center; font-size: 3rem; font-weight: 700; color: var(--pink); }
+    .thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .body { padding: .9rem; display: flex; flex-direction: column; gap: .35rem; }
+    .cat { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+    .name { font-weight: 600; }
+    .desc { font-size: .85rem; color: var(--muted); }
+    .price { font-size: 1.1rem; font-weight: 700; color: var(--pink); }
+    .badge { font-size: .8rem; font-weight: 600; }
+    .badge.ok { color: var(--ok); } .badge.bad { color: var(--bad); }
+    .state { text-align: center; color: var(--muted); padding: 2rem 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Katalog Produk</h1>
+    <a href="index.html">Masuk Staf</a>
+  </header>
+  <main>
+    <div class="tools">
+      <input id="q" type="search" placeholder="Cari produk...">
+      <select id="cat"><option value="">Semua kategori</option></select>
+    </div>
+    <div id="grid" class="grid"></div>
+    <p id="state" class="state">Memuat produk...</p>
+  </main>
+
+  <script>
+    const API = 'http://localhost:8000/api/v1';
+    const rupiah = (n) => 'Rp ' + new Intl.NumberFormat('id-ID').format(n);
+    let products = [];
+
+    function el(tag, cls, text) {
+      const e = document.createElement(tag);
+      if (cls) e.className = cls;
+      if (text != null) e.textContent = text;
+      return e;
+    }
+
+    function render() {
+      const q = document.getElementById('q').value.trim().toLowerCase();
+      const cat = document.getElementById('cat').value;
+      const list = products.filter((p) =>
+        (!cat || p.category === cat) &&
+        (!q || p.name.toLowerCase().includes(q) || (p.description || '').toLowerCase().includes(q)));
+
+      const grid = document.getElementById('grid');
+      grid.replaceChildren();
+      document.getElementById('state').textContent = list.length ? '' : 'Produk tidak ditemukan.';
+
+      for (const p of list) {
+        const card = el('div', 'card');
+        const thumb = el('div', 'thumb');
+        if (p.image) {
+          const img = document.createElement('img');
+          img.src = p.image; img.alt = p.name; img.loading = 'lazy';
+          img.onerror = () => { thumb.replaceChildren(document.createTextNode(p.name.charAt(0))); };
+          thumb.appendChild(img);
+        } else {
+          thumb.textContent = p.name.charAt(0).toUpperCase();
+        }
+        const body = el('div', 'body');
+        if (p.category) body.appendChild(el('div', 'cat', p.category));
+        body.appendChild(el('div', 'name', p.name));
+        if (p.description) body.appendChild(el('div', 'desc', p.description));
+        body.appendChild(el('div', 'price', rupiah(p.price)));
+        body.appendChild(el('div', 'badge ' + (p.available ? 'ok' : 'bad'),
+          p.available ? 'Tersedia' : 'Stok habis'));
+        card.append(thumb, body);
+        grid.appendChild(card);
+      }
+    }
+
+    async function load() {
+      try {
+        const res = await fetch(API + '/public/products');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        products = await res.json();
+        const select = document.getElementById('cat');
+        [...new Set(products.map((p) => p.category).filter(Boolean))].sort().forEach((c) => {
+          const o = document.createElement('option'); o.value = c; o.textContent = c; select.appendChild(o);
+        });
+        render();
+      } catch (e) {
+        document.getElementById('state').textContent = 'Gagal memuat produk. Pastikan server berjalan.';
+      }
+    }
+
+    document.getElementById('q').addEventListener('input', render);
+    document.getElementById('cat').addEventListener('change', render);
+    load();
+  </script>
+</body>
+</html>
