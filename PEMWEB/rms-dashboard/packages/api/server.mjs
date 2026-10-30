@@ -11,6 +11,7 @@ import { authRoutes } from './src/auth.routes.mjs';
 import { inventoryRoutes } from './src/inventory.routes.mjs';
 import { salesRoutes } from './src/sales.routes.mjs';
 import { dashboardRoutes } from './src/dashboard.routes.mjs';
+import { publicRoutes } from './src/public.routes.mjs';
 
 export const prisma = new PrismaClient();
 const app = express();
@@ -30,6 +31,7 @@ api.get('/health', async (_req, res, next) => {
 });
 
 api.use('/auth', authRoutes(prisma));
+api.use(publicRoutes(prisma));
 api.use(inventoryRoutes(prisma));
 api.use(salesRoutes(prisma));
 api.use(dashboardRoutes(prisma));
