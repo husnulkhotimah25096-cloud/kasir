@@ -3,62 +3,98 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Katalog Produk - Toko Kami</title>
+  <title>Toko Kami</title>
   <style>
     :root {
       --bg: #fdf2f8; --card: #ffffff; --text: #3b0a24; --muted: #8a5a73;
-      --pink: #ec4899; --pink-soft: #fce7f3; --ok: #15803d; --bad: #b91c1c;
+      --pink: #ec4899; --pink-dark: #be185d; --pink-soft: #fce7f3; --ok: #15803d; --bad: #b91c1c;
     }
     @media (prefers-color-scheme: dark) {
       :root { --bg: #200915; --card: #2e1220; --text: #fce7f3; --muted: #d6a3bd;
-              --pink: #f472b6; --pink-soft: #4a1d33; --ok: #4ade80; --bad: #f87171; }
+              --pink: #f472b6; --pink-dark: #ec4899; --pink-soft: #4a1d33; --ok: #4ade80; --bad: #f87171; }
     }
     * { box-sizing: border-box; }
     body { margin: 0; font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); }
-    header { display: flex; justify-content: space-between; align-items: center;
-             padding: 1rem 1.5rem; background: var(--card); border-bottom: 1px solid var(--pink-soft); }
-    header h1 { margin: 0; font-size: 1.25rem; color: var(--pink); }
-    header a { color: var(--muted); font-size: .85rem; text-decoration: none; }
-    header a:hover { color: var(--pink); }
-    main { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
-    .tools { display: flex; gap: .75rem; flex-wrap: wrap; margin-bottom: 1rem; }
-    .tools input, .tools select { padding: .6rem .8rem; border-radius: 10px; font: inherit;
-      border: 1px solid var(--pink-soft); background: var(--card); color: var(--text); }
-    .tools input { flex: 1; min-width: 200px; }
-    .grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
-    .card { background: var(--card); border-radius: 14px; overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,.08); display: flex; flex-direction: column; }
-    .thumb { aspect-ratio: 4 / 3; background: var(--pink-soft); display: flex;
-             align-items: center; justify-content: center; font-size: 3rem; font-weight: 700; color: var(--pink); }
+    a { color: inherit; text-decoration: none; }
+    header { position: sticky; top: 0; z-index: 10; background: linear-gradient(90deg, #ec4899, #f472b6); color: #fff; }
+    .bar { max-width: 1100px; margin: 0 auto; padding: .75rem 1.25rem; display: flex; align-items: center; gap: 1rem; }
+    .brand { font-size: 1.3rem; font-weight: 800; white-space: nowrap; }
+    .search { flex: 1; }
+    .search input { width: 100%; padding: .6rem .9rem; border: 0; border-radius: 8px; font: inherit; color: #3b0a24; }
+    .cart { position: relative; font-size: 1.5rem; padding: 0 .25rem; }
+    .cart .count { position: absolute; top: -6px; right: -8px; min-width: 20px; height: 20px; padding: 0 5px;
+      border-radius: 10px; background: #fff; color: var(--pink-dark); font-size: .75rem; font-weight: 700;
+      display: flex; align-items: center; justify-content: center; }
+    .staff { font-size: .8rem; opacity: .9; white-space: nowrap; }
+    .staff:hover { text-decoration: underline; }
+    main { max-width: 1100px; margin: 0 auto; padding: 1.25rem; }
+    .banner { border-radius: 16px; padding: 2rem 1.5rem; margin-bottom: 1.25rem; color: #fff;
+      background: linear-gradient(120deg, #be185d, #ec4899 60%, #f9a8d4); }
+    .banner h2 { margin: 0 0 .4rem; font-size: 1.6rem; }
+    .banner p { margin: 0; opacity: .95; }
+    .cats { display: flex; gap: .75rem; overflow-x: auto; padding-bottom: .5rem; margin-bottom: 1rem; }
+    .cat { flex: 0 0 auto; min-width: 96px; background: var(--card); border: 2px solid transparent; border-radius: 14px;
+      padding: .8rem .6rem; text-align: center; cursor: pointer; font: inherit; color: var(--text); }
+    .cat .ico { font-size: 1.8rem; display: block; }
+    .cat span.t { font-size: .8rem; }
+    .cat.active { border-color: var(--pink); background: var(--pink-soft); }
+    h3.sec { margin: 1rem 0 .75rem; font-size: 1.05rem; }
+    .grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+    .card { background: var(--card); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column;
+      box-shadow: 0 2px 8px rgba(0,0,0,.08); transition: transform .15s; }
+    .card:hover { transform: translateY(-3px); }
+    .thumb { aspect-ratio: 4 / 3; background: var(--pink-soft); display: flex; align-items: center;
+      justify-content: center; font-size: 3rem; font-weight: 700; color: var(--pink); }
     .thumb img { width: 100%; height: 100%; object-fit: cover; }
-    .body { padding: .9rem; display: flex; flex-direction: column; gap: .35rem; }
-    .cat { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+    .body { padding: .8rem; display: flex; flex-direction: column; gap: .3rem; flex: 1; }
+    .cat-l { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
     .name { font-weight: 600; }
-    .desc { font-size: .85rem; color: var(--muted); }
-    .price { font-size: 1.1rem; font-weight: 700; color: var(--pink); }
+    .price { font-size: 1.05rem; font-weight: 700; color: var(--pink-dark); }
     .badge { font-size: .8rem; font-weight: 600; }
     .badge.ok { color: var(--ok); } .badge.bad { color: var(--bad); }
+    .add { margin-top: auto; padding: .55rem; border: 0; border-radius: 8px; background: var(--pink); color: #fff;
+      font: inherit; font-weight: 600; cursor: pointer; }
+    .add:disabled { background: var(--muted); opacity: .5; cursor: not-allowed; }
     .state { text-align: center; color: var(--muted); padding: 2rem 0; }
+    .toast { position: fixed; left: 50%; bottom: 1.5rem; transform: translateX(-50%); background: var(--text); color: var(--bg);
+      padding: .6rem 1.1rem; border-radius: 999px; font-size: .9rem; opacity: 0; transition: opacity .2s; pointer-events: none; }
+    .toast.show { opacity: 1; }
+    footer { text-align: center; color: var(--muted); font-size: .8rem; padding: 1.5rem 0 2rem; }
+    @media (max-width: 600px) { .staff { display: none; } .brand { font-size: 1.1rem; } }
   </style>
 </head>
 <body>
   <header>
-    <h1>Katalog Produk</h1>
-    <a href="index.html">Masuk Staf</a>
-  </header>
-  <main>
-    <div class="tools">
-      <input id="q" type="search" placeholder="Cari produk...">
-      <select id="cat"><option value="">Semua kategori</option></select>
+    <div class="bar">
+      <a class="brand" href="katalog.html">Toko Kami</a>
+      <div class="search"><input id="q" type="search" placeholder="Cari produk di Toko Kami"></div>
+      <a class="cart" href="keranjang.html" title="Keranjang">🛒<span id="count" class="count">0</span></a>
+      <a class="staff" href="index.html">Masuk Staf</a>
     </div>
+  </header>
+
+  <main>
+    <section class="banner">
+      <h2>Belanja Kebutuhan Harian, Lebih Mudah</h2>
+      <p>Gratis ongkir untuk belanja di atas Rp 50.000</p>
+    </section>
+
+    <div id="cats" class="cats"></div>
+
+    <h3 id="sec" class="sec">Semua Produk</h3>
     <div id="grid" class="grid"></div>
     <p id="state" class="state">Memuat produk...</p>
   </main>
 
+  <footer>© Toko Kami</footer>
+  <div id="toast" class="toast"></div>
+
   <script>
     const API = 'http://localhost:8000/api/v1';
+    const ICONS = { 'Makanan': '🍜', 'Minuman': '🥤', 'Kebutuhan Rumah': '🏠' };
     const rupiah = (n) => 'Rp ' + new Intl.NumberFormat('id-ID').format(n);
     let products = [];
+    let activeCat = '';
 
     function el(tag, cls, text) {
       const e = document.createElement(tag);
@@ -67,36 +103,85 @@
       return e;
     }
 
+    // --- Keranjang (disimpan di browser) ---
+    function getCart() {
+      try { const c = JSON.parse(localStorage.getItem('rms_cart')); return Array.isArray(c) ? c : []; }
+      catch { return []; }
+    }
+    function saveCart(c) { try { localStorage.setItem('rms_cart', JSON.stringify(c)); } catch {} updateCount(); }
+    function updateCount() {
+      document.getElementById('count').textContent = getCart().reduce((a, i) => a + i.qty, 0);
+    }
+    function addToCart(id) {
+      const c = getCart();
+      const row = c.find((i) => i.id === id);
+      if (row) row.qty += 1; else c.push({ id, qty: 1 });
+      saveCart(c);
+      toast('Ditambahkan ke keranjang');
+    }
+    let toastTimer;
+    function toast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg; t.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove('show'), 1500);
+    }
+
+    // --- Tampilan ---
+    function renderCats() {
+      const box = document.getElementById('cats');
+      box.replaceChildren();
+      const names = ['', ...[...new Set(products.map((p) => p.category).filter(Boolean))].sort()];
+      for (const n of names) {
+        const b = el('button', 'cat' + (n === activeCat ? ' active' : ''));
+        b.type = 'button';
+        b.append(el('span', 'ico', n ? (ICONS[n] || '🛍️') : '✨'), el('span', 't', n || 'Semua'));
+        b.addEventListener('click', () => { activeCat = n; renderCats(); render(); });
+        box.appendChild(b);
+      }
+    }
+
     function render() {
       const q = document.getElementById('q').value.trim().toLowerCase();
-      const cat = document.getElementById('cat').value;
       const list = products.filter((p) =>
-        (!cat || p.category === cat) &&
+        (!activeCat || p.category === activeCat) &&
         (!q || p.name.toLowerCase().includes(q) || (p.description || '').toLowerCase().includes(q)));
 
+      document.getElementById('sec').textContent = activeCat || 'Semua Produk';
       const grid = document.getElementById('grid');
       grid.replaceChildren();
       document.getElementById('state').textContent = list.length ? '' : 'Produk tidak ditemukan.';
 
       for (const p of list) {
         const card = el('div', 'card');
+        const link = el('a');
+        link.href = 'produk.html?id=' + encodeURIComponent(p.id);
+
         const thumb = el('div', 'thumb');
         if (p.image) {
           const img = document.createElement('img');
           img.src = p.image; img.alt = p.name; img.loading = 'lazy';
-          img.onerror = () => { thumb.replaceChildren(document.createTextNode(p.name.charAt(0))); };
+          img.onerror = () => thumb.replaceChildren(document.createTextNode(p.name.charAt(0)));
           thumb.appendChild(img);
         } else {
           thumb.textContent = p.name.charAt(0).toUpperCase();
         }
         const body = el('div', 'body');
-        if (p.category) body.appendChild(el('div', 'cat', p.category));
+        if (p.category) body.appendChild(el('div', 'cat-l', p.category));
         body.appendChild(el('div', 'name', p.name));
-        if (p.description) body.appendChild(el('div', 'desc', p.description));
         body.appendChild(el('div', 'price', rupiah(p.price)));
-        body.appendChild(el('div', 'badge ' + (p.available ? 'ok' : 'bad'),
-          p.available ? 'Tersedia' : 'Stok habis'));
-        card.append(thumb, body);
+        body.appendChild(el('div', 'badge ' + (p.available ? 'ok' : 'bad'), p.available ? 'Tersedia' : 'Stok habis'));
+        link.append(thumb, body);
+
+        const btn = el('button', 'add', p.available ? '+ Keranjang' : 'Stok habis');
+        btn.type = 'button';
+        btn.disabled = !p.available;
+        btn.addEventListener('click', () => addToCart(p.id));
+
+        const wrap = el('div', 'body');
+        wrap.style.paddingTop = '0';
+        wrap.appendChild(btn);
+        card.append(link, wrap);
         grid.appendChild(card);
       }
     }
@@ -106,10 +191,7 @@
         const res = await fetch(API + '/public/products');
         if (!res.ok) throw new Error('HTTP ' + res.status);
         products = await res.json();
-        const select = document.getElementById('cat');
-        [...new Set(products.map((p) => p.category).filter(Boolean))].sort().forEach((c) => {
-          const o = document.createElement('option'); o.value = c; o.textContent = c; select.appendChild(o);
-        });
+        renderCats();
         render();
       } catch (e) {
         document.getElementById('state').textContent = 'Gagal memuat produk. Pastikan server berjalan.';
@@ -117,7 +199,7 @@
     }
 
     document.getElementById('q').addEventListener('input', render);
-    document.getElementById('cat').addEventListener('change', render);
+    updateCount();
     load();
   </script>
 </body>
