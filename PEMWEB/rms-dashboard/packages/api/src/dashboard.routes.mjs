@@ -42,7 +42,7 @@ export function dashboardRoutes(prisma) {
       const { since } = periodRange(days);
       const where = paidWhere(storeId, since);
 
-      const [omzet, items, pending, stokWarning] = await Promise.all([
+      const [omzet, items, pending, stokRows] = await Promise.all([
         prisma.order.aggregate({ where, _sum: { total: true } }),
         prisma.orderItem.findMany({
           where: { order: where },
@@ -59,14 +59,16 @@ export function dashboardRoutes(prisma) {
             ...storeFilter(storeId)
           }
         }),
-        prisma.productVariant.count({
-          where: {
-            stock: { lte: LOW_STOCK_THRESHOLD },
-            ...(Number.isFinite(storeId) ? { product: { storeId } } : {})
-          }
+               prisma.stock.groupBy({
+          by: ['productVariantId'],
+          where: Number.isFinite(storeId) ? { productVariant: { product: { storeId } } } : {},
+          _sum: { quantity: true }
         })
       ]);
 
+      // stok per varian dijumlahkan dari semua gudang, lalu dibandingkan dengan batas
+      const stokWarning = stokRows.filter((r) => (r._sum.quantity ?? 0) <= LOW_STOCK_THRESHOLD).length;
+      
       let revenue = 0;
       let cogs = 0;
       for (const it of items) {
