@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pesanan - Toko Kami</title>
+  <style>
+    :root { --bg:#fdf2f8; --card:#fff; --text:#3b0a24; --muted:#8a5a73; --pink:#ec4899; --pink-dark:#be185d; --pink-soft:#fce7f3; --ok:#15803d; --bad:#b91c1c; }
+    @media (prefers-color-scheme: dark) { :root { --bg:#200915; --card:#2e1220; --text:#fce7f3; --muted:#d6a3bd; --pink:#f472b6; --pink-dark:#ec4899; --pink-soft:#4a1d33; --ok:#4ade80; --bad:#f87171; } }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--text); }
+    a { color:inherit; text-decoration:none; }
+    header { background:linear-gradient(90deg,#ec4899,#f472b6); color:#fff; }
+    .bar { max-width:720px; margin:0 auto; padding:.75rem 1.25rem; display:flex; justify-content:space-between; }
+    .brand { font-size:1.3rem; font-weight:800; }
+    main { max-width:720px; margin:0 auto; padding:1.25rem; }
+    .box { background:var(--card); border-radius:14px; padding:1rem; margin-bottom:1rem; box-shadow:0 2px 8px rgba(0,0,0,.08); }
+    h1 { font-size:1.3rem; margin:.25rem 0 1rem; } h2 { margin:0 0 .6rem; font-size:1rem; }
+    .pill { display:inline-block; padding:.2rem .7rem; border-radius:999px; background:var(--pink-soft); color:var(--pink-dark); font-weight:700; font-size:.85rem; margin-right:.4rem; }
+    .pill.ok { color:var(--ok); } .pill.bad { color:var(--bad); }
+    .no { font-family:monospace; font-weight:700; word-break:break-all; }
+    .line { display:flex; justify-content:space-between; gap:.5rem; margin:.3rem 0; font-size:.9rem; }
+    .total { font-size:1.1rem; font-weight:800; color:var(--pink-dark); border-top:1px solid var(--pink-soft); padding-top:.6rem; margin-top:.6rem; }
+    .muted { color:var(--muted); font-size:.9rem; }
+    input { width:100%; margin:.25rem 0 .7rem; padding:.6rem .7rem; border:1px solid var(--pink-soft); border-radius:8px; background:var(--bg); color:var(--text); font:inherit; }
+    button { padding:.7rem 1.2rem; border:0; border-radius:8px; background:var(--pink); color:#fff; font:inherit; font-weight:700; cursor:pointer; }
+    .err { color:var(--bad); margin-top:.5rem; }
+    #qr { width:200px; height:200px; display:block; margin:.5rem 0; background:#fff; padding:6px; border-radius:8px; }
+  </style>
+</head>
+<body>
+  <header><div class="bar"><a class="brand" href="katalog.html">Toko Kami</a><a href="katalog.html">Belanja lagi</a></div></header>
+  <main>
+    <h1>Pesanan Kamu</h1>
+    <div id="lookup" class="box" hidden>
+      <h2>Lacak pesanan</h2>
+      <label class="muted">Nomor pesanan<input id="lno" type="text" placeholder="ONL-..."></label>
+      <label class="muted">Nomor telepon saat memesan<input id="ltel" type="tel"></label>
+      <button id="lgo" type="button">Cari</button>
+      <div id="lerr" class="err"></div>
+    </div>
+    <div id="out"></div>
+  </main>
+
+  <script>
+    const API = 'http://localhost:8000/api/v1';
+    // Data contoh, ganti dengan data toko yang sebenarnya
+    const STORE = { address: 'Jl. Contoh No. 1', hours: '08.00-21.00' };
+    const BANK = { bank: 'Bank BCA', no: '1234567890', name: 'Toko Kami' };
+    const ST = { PENDING:'Menunggu konfirmasi', CONFIRMED:'Dikonfirmasi', PREPARING:'Sedang disiapkan', READY:'Siap', COMPLETED:'Selesai', CANCELLED:'Dibatalkan' };
+    const PS = { PENDING:'Belum dibayar', PAID:'Lunas', FAILED:'Pembayaran gagal', REFUNDED:'Dikembalikan', PARTIALLY_REFUNDED:'Dikembalikan sebagian' };
+    const rupiah = (n) => 'Rp ' + new Intl.NumberFormat('id-ID').format(n);
+    const $ = (id) => document.getElementById(id);
+
+    function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+    function line(a, b, cls) { const d = el('div', 'line' + (cls ? ' ' + cls : '')); d.append(el('span', null, a), el('span', null, b)); return d; }
+
+    // Gambar QR simulasi (BUKAN QRIS sungguhan)
+    function fakeQR() {
+      const n = 25, c = 8, ns = 'http://www.w3.org/2000/svg';
+      const svg = document.createElementNS(ns, 'svg');
+      svg.setAttribute('id', 'qr'); svg.setAttribute('viewBox', `0 0 ${n * c} ${n * c}`);
+      const rect = (x, y, w, h, f) => { const r = document.createElementNS(ns, 'rect'); r.setAttribute('x', x); r.setAttribute('y', y); r.setAttribute('width', w); r.setAttribute('height', h); r.setAttribute('fill', f); svg.appendChild(r); };
+      let s = 7; const rnd = () => (s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+      const finder = (ox, oy) => { rect(ox*c, oy*c, 7*c, 7*c, '#000'); rect((ox+1)*c, (oy+1)*c, 5*c, 5*c, '#fff'); rect((ox+2)*c, (oy+2)*c, 3*c, 3*c, '#000'); };
+      const inF = (x, y) => (x < 8 && y < 8) || (x >= n - 8 && y < 8) || (x < 8 && y >= n - 8);
+      for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (!inF(x, y) && rnd() > 0.52) rect(x*c, y*c, c, c, '#000');
+      finder(0, 0); finder(n - 7, 0); finder(0, n - 7);
+      return svg;
+    }
+
+    function render(o) {
+      const out = $('out'); out.replaceChildren();
+      const head = el('div', 'box');
+      head.append(el('div', 'muted', 'Nomor pesanan'), el('div', 'no', o.orderNumber));
+      const row = el('div'); row.style.marginTop = '.6rem';
+      row.append(el('span', 'pill' + (o.status === 'CANCELLED' ? ' bad' : ''), ST[o.status] || o.status),
+                 el('span', 'pill' + (o.paymentStatus === 'PAID' ? ' ok' : ''), PS[o.paymentStatus] || o.paymentStatus));
+      head.appendChild(row);
+      out.appendChild(head);
+
+      if (o.paymentStatus === 'PENDING' && o.status !== 'CANCELLED') {
+        const b = el('div', 'box'); b.appendChild(el('h2', null, 'Cara pembayaran'));
+        if (o.paymentMethod === 'TRANSFER') {
+          b.append(el('p', null, `Transfer tepat ${rupiah(o.total)} ke:`),
+                   el('p', 'no', `${BANK.bank} ${BANK.no}`), el('p', 'muted', `a.n. ${BANK.name}`),
+                   el('p', 'muted', 'Pesanan diproses setelah staf memastikan pembayaranmu masuk.'));
+        } else if (o.paymentMethod === 'QRIS') {
+          b.append(el('p', null, `Bayar ${rupiah(o.total)} dengan memindai kode QR berikut:`), fakeQR(),
+                   el('p', 'muted', 'SIMULASI untuk demo, bukan pembayaran sungguhan. Staf akan menandai pesanan lunas secara manual.'));
+        } else {
+          b.append(el('p', null, o.fulfillment === 'ANTAR' ? `Siapkan uang tunai ${rupiah(o.total)} saat barang diterima.` : `Bayar tunai ${rupiah(o.total)} di kasir saat mengambil pesanan.`));
+        }
+        out.appendChild(b);
+      }
+
+      const f = el('div', 'box'); f.appendChild(el('h2', null, o.fulfillment === 'ANTAR' ? 'Diantar ke alamat' : 'Ambil di toko'));
+      f.appendChild(el('p', 'muted', o.fulfillment === 'ANTAR' ? 'Kurir akan menghubungi nomor teleponmu.' : `${STORE.address}, jam buka ${STORE.hours}. Sebutkan nomor pesanan di kasir.`));
+      out.appendChild(f);
+
+      const it = el('div', 'box'); it.appendChild(el('h2', null, 'Rincian'));
+      for (const i of o.items) it.appendChild(line(`${i.name} × ${i.qty}`, rupiah(i.price * i.qty)));
+      it.append(line('Subtotal', rupiah(o.subtotal)), line('PPN 10%', rupiah(o.tax)), line('Ongkir', o.shipping ? rupiah(o.shipping) : 'Gratis'), line('Total', rupiah(o.total), 'total'));
+      out.appendChild(it);
+      out.appendChild(el('p', 'muted', 'Simpan nomor pesananmu untuk melacak pesanan kapan saja di halaman ini.'));
+    }
+
+    async function track(no, tel) {
+      $('lerr').textContent = '';
+      try {
+        const res = await fetch(`${API}/public/orders/track?orderNumber=${encodeURIComponent(no)}&phone=${encodeURIComponent(tel)}`);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || 'Gagal memuat pesanan');
+        $('lookup').hidden = true; render(data);
+      } catch (e) { $('lookup').hidden = false; $('lerr').textContent = e.message; }
+    }
+
+    $('lgo').addEventListener('click', () => track($('lno').value.trim(), $('ltel').value.trim()));
+    const q = new URLSearchParams(location.search);
+    if (q.get('no') && q.get('tel')) track(q.get('no'), q.get('tel')); else $('lookup').hidden = false;
+  </script>
+</body>
+</html>

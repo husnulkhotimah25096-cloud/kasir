@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Checkout - Toko Kami</title>
+  <style>
+    :root { --bg:#fdf2f8; --card:#fff; --text:#3b0a24; --muted:#8a5a73; --pink:#ec4899; --pink-dark:#be185d; --pink-soft:#fce7f3; --bad:#b91c1c; }
+    @media (prefers-color-scheme: dark) { :root { --bg:#200915; --card:#2e1220; --text:#fce7f3; --muted:#d6a3bd; --pink:#f472b6; --pink-dark:#ec4899; --pink-soft:#4a1d33; --bad:#f87171; } }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--text); }
+    a { color:inherit; text-decoration:none; }
+    header { background:linear-gradient(90deg,#ec4899,#f472b6); color:#fff; }
+    .bar { max-width:900px; margin:0 auto; padding:.75rem 1.25rem; display:flex; justify-content:space-between; align-items:center; }
+    .brand { font-size:1.3rem; font-weight:800; }
+    main { max-width:900px; margin:0 auto; padding:1.25rem; display:grid; gap:1rem; grid-template-columns:1.3fr 1fr; align-items:start; }
+    @media (max-width:760px) { main { grid-template-columns:1fr; } }
+    .box { background:var(--card); border-radius:14px; padding:1rem; box-shadow:0 2px 8px rgba(0,0,0,.08); }
+    h1 { grid-column:1/-1; margin:.25rem 0 0; font-size:1.3rem; }
+    h2 { margin:0 0 .6rem; font-size:1rem; }
+    label.f { display:block; margin-bottom:.7rem; font-size:.85rem; color:var(--muted); }
+    input[type=text], input[type=tel], textarea { width:100%; margin-top:.25rem; padding:.6rem .7rem; border:1px solid var(--pink-soft); border-radius:8px; background:var(--bg); color:var(--text); font:inherit; }
+    textarea { min-height:70px; resize:vertical; }
+    .opt { display:flex; gap:.6rem; align-items:flex-start; padding:.6rem .7rem; border:2px solid var(--pink-soft); border-radius:10px; margin-bottom:.5rem; cursor:pointer; }
+    .opt:has(input:checked) { border-color:var(--pink); background:var(--pink-soft); }
+    .opt small { display:block; color:var(--muted); }
+    .line { display:flex; justify-content:space-between; gap:.5rem; margin:.3rem 0; font-size:.9rem; }
+    .total { font-size:1.15rem; font-weight:800; color:var(--pink-dark); border-top:1px solid var(--pink-soft); padding-top:.6rem; margin-top:.6rem; }
+    .go { width:100%; margin-top:.9rem; padding:.85rem; border:0; border-radius:10px; background:var(--pink); color:#fff; font:inherit; font-weight:700; cursor:pointer; }
+    .go:disabled { opacity:.5; cursor:not-allowed; }
+    .err { color:var(--bad); font-size:.9rem; margin-top:.6rem; }
+    .state { grid-column:1/-1; text-align:center; color:var(--muted); padding:2rem 0; }
+  </style>
+</head>
+<body>
+  <header><div class="bar"><a class="brand" href="katalog.html">Toko Kami</a><a href="keranjang.html">← Kembali ke keranjang</a></div></header>
+  <main id="main" hidden>
+    <h1>Checkout</h1>
+    <form id="f" class="box" novalidate>
+      <h2>Data pembeli</h2>
+      <label class="f">Nama lengkap<input id="name" type="text" maxlength="100" autocomplete="name"></label>
+      <label class="f">Nomor telepon<input id="phone" type="tel" maxlength="20" placeholder="08xxxxxxxxxx" autocomplete="tel"></label>
+
+      <h2>Pengambilan</h2>
+      <label class="opt"><input type="radio" name="ful" value="AMBIL" checked><span>Ambil di toko<small>Tanpa ongkir</small></span></label>
+      <label class="opt"><input type="radio" name="ful" value="ANTAR"><span>Antar ke alamat<small>Ongkir Rp 10.000, gratis untuk belanja di atas Rp 50.000</small></span></label>
+      <label class="f" id="addrWrap" hidden>Alamat lengkap<textarea id="address" maxlength="300" placeholder="Jalan, nomor, RT/RW, kelurahan, kota"></textarea></label>
+      <label class="f">Catatan (opsional)<input id="note" type="text" maxlength="200"></label>
+
+      <h2>Pembayaran</h2>
+      <label class="opt"><input type="radio" name="pay" value="CASH" checked><span>Bayar di tempat (tunai)<small>Bayar saat barang diterima atau diambil</small></span></label>
+      <label class="opt"><input type="radio" name="pay" value="TRANSFER"><span>Transfer bank<small>Nomor rekening ditampilkan setelah memesan</small></span></label>
+      <label class="opt"><input type="radio" name="pay" value="QRIS"><span>QRIS<small>Kode QR ditampilkan setelah memesan</small></span></label>
+      <div id="err" class="err" role="alert"></div>
+      <button id="go" class="go" type="submit">Buat Pesanan</button>
+    </form>
+
+    <aside class="box">
+      <h2>Ringkasan</h2>
+      <div id="lines"></div>
+      <div class="line"><span>Subtotal</span><span id="sSub"></span></div>
+      <div class="line"><span>PPN 10%</span><span id="sTax"></span></div>
+      <div class="line"><span>Ongkir</span><span id="sShip"></span></div>
+      <div class="line total"><span>Total</span><span id="sTotal"></span></div>
+    </aside>
+  </main>
+  <p id="state" class="state">Memuat checkout...</p>
+
+  <script>
+    const API = 'http://localhost:8000/api/v1';
+    const rupiah = (n) => 'Rp ' + new Intl.NumberFormat('id-ID').format(n);
+    const $ = (id) => document.getElementById(id);
+    const idemKey = crypto.randomUUID(); // satu kunci per halaman: klik ganda tidak membuat pesanan ganda
+    let rows = [];
+
+    function getCart() { try { const c = JSON.parse(localStorage.getItem('rms_cart')); return Array.isArray(c) ? c : []; } catch { return []; } }
+    const val = (name) => document.querySelector(`input[name=${name}]:checked`).value;
+
+    function totals() {
+      const subtotal = rows.reduce((a, r) => a + r.price * r.qty, 0);
+      const tax = Math.round(subtotal * 0.10);
+      const shipping = val('ful') === 'ANTAR' && subtotal < 50000 ? 10000 : 0;
+      return { subtotal, tax, shipping, total: subtotal + tax + shipping };
+    }
+
+    function draw() {
+      const t = totals();
+      const box = $('lines'); box.replaceChildren();
+      for (const r of rows) {
+        const d = document.createElement('div'); d.className = 'line';
+        const a = document.createElement('span'); a.textContent = r.name + ' × ' + r.qty;
+        const b = document.createElement('span'); b.textContent = rupiah(r.price * r.qty);
+        d.append(a, b); box.appendChild(d);
+      }
+      $('sSub').textContent = rupiah(t.subtotal);
+      $('sTax').textContent = rupiah(t.tax);
+      $('sShip').textContent = t.shipping ? rupiah(t.shipping) : 'Gratis';
+      $('sTotal').textContent = rupiah(t.total);
+      $('addrWrap').hidden = val('ful') !== 'ANTAR';
+    }
+
+    async function load() {
+      const cart = getCart();
+      if (!cart.length) { $('state').textContent = 'Keranjangmu kosong.'; return; }
+      try {
+        const res = await fetch(API + '/public/products');
+        if (!res.ok) throw new Error();
+        const products = await res.json();
+        rows = cart.map((c) => ({ ...c, p: products.find((x) => x.id === c.id) }))
+                   .filter((c) => c.p && c.p.available)
+                   .map((c) => ({ id: c.id, qty: c.qty, name: c.p.name, price: c.p.price }));
+        if (!rows.length) { $('state').textContent = 'Tidak ada produk tersedia di keranjangmu.'; return; }
+        $('state').textContent = ''; $('main').hidden = false; draw();
+      } catch { $('state').textContent = 'Gagal memuat checkout. Pastikan server berjalan.'; }
+    }
+
+    document.querySelectorAll('input[name=ful]').forEach((e) => e.addEventListener('change', draw));
+
+    $('f').addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      $('err').textContent = '';
+      const name = $('name').value.trim(), phone = $('phone').value.trim();
+      const ful = val('ful'), address = $('address').value.trim();
+      if (name.length < 2) return $('err').textContent = 'Nama wajib diisi.';
+      if (!/^[0-9+\-\s]{8,20}$/.test(phone)) return $('err').textContent = 'Nomor telepon tidak valid.';
+      if (ful === 'ANTAR' && address.length < 10) return $('err').textContent = 'Alamat pengantaran wajib diisi (minimal 10 karakter).';
+
+      $('go').disabled = true; $('go').textContent = 'Memproses...';
+      try {
+        const res = await fetch(API + '/public/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: rows.map((r) => ({ productId: r.id, qty: r.qty })),
+            name, phone, fulfillment: ful, address, note: $('note').value.trim(),
+            paymentMethod: val('pay'), idempotencyKey: idemKey,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || 'Gagal membuat pesanan');
+        try { localStorage.removeItem('rms_cart'); } catch {}
+        location.href = 'pesanan.html?no=' + encodeURIComponent(data.orderNumber) + '&tel=' + encodeURIComponent(phone);
+      } catch (e) {
+        $('err').textContent = e.message;
+        $('go').disabled = false; $('go').textContent = 'Buat Pesanan';
+      }
+    });
+    load();
+  </script>
+</body>
+</html>
