@@ -1,4 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
+const crypto = require('node:crypto');
 const bcrypt = require('bcrypt');
 const prisma = new PrismaClient();
 
@@ -32,6 +33,22 @@ async function main() {
     });
   }
 
+    // Akun sistem untuk pesanan online (Order.createdBy wajib terisi).
+  // Password acak dan tidak dicatat, jadi akun ini tidak bisa dipakai login.
+  const sysHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
+  await prisma.user.upsert({
+    where: { username: 'online-system' },
+    update: {},
+    create: {
+      username: 'online-system',
+      name: 'Pesanan Online',
+      role: 'KASIR',
+      email: 'online-system@rms.local',
+      password: sysHash,
+      storeId: store.id,
+    },
+  });
+
   const catNames = ['Makanan', 'Minuman', 'Kebutuhan Rumah'];
   const cats = {};
   for (const name of catNames) {
@@ -53,10 +70,11 @@ async function main() {
     ['SKU-008', 'Tisu Gulung', 'Kebutuhan Rumah', 8000, 6000],
   ];
   for (const [sku, name, cat, price, cost] of products) {
+      const image = `assets/products/${sku}.svg`;
     const p = await prisma.product.upsert({
       where: { sku },
-      update: {},
-      create: { sku, name, price, cost, storeId: store.id, categoryId: cats[cat].id },
+      update: { image },
+      create: { sku, name, price, cost, image, storeId: store.id, categoryId: cats[cat].id },
     });
     const v = await prisma.productVariant.upsert({
       where: { sku: `${sku}-DEF` },
