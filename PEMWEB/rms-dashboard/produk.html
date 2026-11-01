@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Detail Produk - Toko Kami</title>
+  <style>
+    :root { --bg:#fdf2f8; --card:#fff; --text:#3b0a24; --muted:#8a5a73; --pink:#ec4899; --pink-dark:#be185d; --pink-soft:#fce7f3; --ok:#15803d; --bad:#b91c1c; }
+    @media (prefers-color-scheme: dark) { :root { --bg:#200915; --card:#2e1220; --text:#fce7f3; --muted:#d6a3bd; --pink:#f472b6; --pink-dark:#ec4899; --pink-soft:#4a1d33; --ok:#4ade80; --bad:#f87171; } }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--text); }
+    a { color:inherit; text-decoration:none; }
+    header { background:linear-gradient(90deg,#ec4899,#f472b6); color:#fff; }
+    .bar { max-width:1000px; margin:0 auto; padding:.75rem 1.25rem; display:flex; align-items:center; justify-content:space-between; }
+    .brand { font-size:1.3rem; font-weight:800; }
+    .cart { position:relative; font-size:1.5rem; }
+    .count { position:absolute; top:-6px; right:-10px; min-width:20px; height:20px; padding:0 5px; border-radius:10px; background:#fff; color:var(--pink-dark); font-size:.75rem; font-weight:700; display:flex; align-items:center; justify-content:center; }
+    main { max-width:1000px; margin:0 auto; padding:1.25rem; }
+    .back { display:inline-block; margin-bottom:1rem; color:var(--muted); }
+    .detail { display:grid; gap:1.5rem; grid-template-columns:1fr 1fr; background:var(--card); border-radius:16px; padding:1.25rem; box-shadow:0 2px 8px rgba(0,0,0,.08); }
+    @media (max-width:700px) { .detail { grid-template-columns:1fr; } }
+    .thumb { aspect-ratio:4/3; background:var(--pink-soft); border-radius:12px; overflow:hidden; display:flex; align-items:center; justify-content:center; font-size:5rem; font-weight:700; color:var(--pink); }
+    .thumb img { width:100%; height:100%; object-fit:cover; }
+    .info { display:flex; flex-direction:column; gap:.6rem; }
+    .cat { font-size:.75rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+    h1 { margin:0; font-size:1.6rem; }
+    .price { font-size:1.7rem; font-weight:800; color:var(--pink-dark); }
+    .badge { font-weight:600; } .ok { color:var(--ok); } .bad { color:var(--bad); }
+    .desc { color:var(--muted); }
+    .qty { display:flex; align-items:center; gap:.6rem; }
+    .qty button { width:36px; height:36px; border:1px solid var(--pink-soft); background:var(--card); color:var(--text); border-radius:8px; font-size:1.2rem; cursor:pointer; }
+    .qty span { min-width:32px; text-align:center; font-weight:700; }
+    .add { padding:.8rem; border:0; border-radius:10px; background:var(--pink); color:#fff; font:inherit; font-weight:700; cursor:pointer; }
+    .add:disabled { background:var(--muted); opacity:.5; cursor:not-allowed; }
+    .state { text-align:center; color:var(--muted); padding:2rem 0; }
+    .toast { position:fixed; left:50%; bottom:1.5rem; transform:translateX(-50%); background:var(--text); color:var(--bg); padding:.6rem 1.1rem; border-radius:999px; opacity:0; transition:opacity .2s; pointer-events:none; }
+    .toast.show { opacity:1; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="bar">
+      <a class="brand" href="katalog.html">Toko Kami</a>
+      <a class="cart" href="keranjang.html" title="Keranjang">🛒<span id="count" class="count">0</span></a>
+    </div>
+  </header>
+  <main>
+    <a class="back" href="katalog.html">← Kembali belanja</a>
+    <div id="box"></div>
+    <p id="state" class="state">Memuat produk...</p>
+  </main>
+  <div id="toast" class="toast"></div>
+
+  <script>
+    const API = 'http://localhost:8000/api/v1';
+    const rupiah = (n) => 'Rp ' + new Intl.NumberFormat('id-ID').format(n);
+    let qty = 1;
+
+    function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+    function getCart() { try { const c = JSON.parse(localStorage.getItem('rms_cart')); return Array.isArray(c) ? c : []; } catch { return []; } }
+    function saveCart(c) { try { localStorage.setItem('rms_cart', JSON.stringify(c)); } catch {} updateCount(); }
+    function updateCount() { document.getElementById('count').textContent = getCart().reduce((a, i) => a + i.qty, 0); }
+    let timer;
+    function toast(m) { const t = document.getElementById('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(timer); timer = setTimeout(() => t.classList.remove('show'), 1500); }
+
+    function show(p) {
+      const box = document.getElementById('box');
+      box.replaceChildren();
+      document.title = p.name + ' - Toko Kami';
+      const wrap = el('div', 'detail');
+      const thumb = el('div', 'thumb');
+      if (p.image) {
+        const img = document.createElement('img');
+        img.src = p.image; img.alt = p.name;
+        img.onerror = () => thumb.replaceChildren(document.createTextNode(p.name.charAt(0)));
+        thumb.appendChild(img);
+      } else { thumb.textContent = p.name.charAt(0).toUpperCase(); }
+
+      const info = el('div', 'info');
+      if (p.category) info.appendChild(el('div', 'cat', p.category));
+      info.appendChild(el('h1', null, p.name));
+      info.appendChild(el('div', 'price', rupiah(p.price)));
+      info.appendChild(el('div', 'badge ' + (p.available ? 'ok' : 'bad'), p.available ? 'Tersedia' : 'Stok habis'));
+      info.appendChild(el('div', 'desc', p.description || 'Belum ada deskripsi untuk produk ini.'));
+
+      const q = el('div', 'qty');
+      const minus = el('button', null, '−'); minus.type = 'button';
+      const num = el('span', null, '1');
+      const plus = el('button', null, '+'); plus.type = 'button';
+      minus.addEventListener('click', () => { qty = Math.max(1, qty - 1); num.textContent = qty; });
+      plus.addEventListener('click', () => { qty = Math.min(50, qty + 1); num.textContent = qty; });
+      q.append(minus, num, plus);
+      info.appendChild(q);
+
+      const add = el('button', 'add', p.available ? '+ Tambah ke Keranjang' : 'Stok habis');
+      add.type = 'button'; add.disabled = !p.available;
+      add.addEventListener('click', () => {
+        const c = getCart(); const row = c.find((i) => i.id === p.id);
+        if (row) row.qty += qty; else c.push({ id: p.id, qty });
+        saveCart(c); toast('Ditambahkan ke keranjang');
+      });
+      info.appendChild(add);
+      wrap.append(thumb, info);
+      box.appendChild(wrap);
+      document.getElementById('state').textContent = '';
+    }
+
+    async function load() {
+      const id = Number(new URLSearchParams(location.search).get('id'));
+      try {
+        const res = await fetch(API + '/public/products');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const p = (await res.json()).find((x) => x.id === id);
+        if (!p) { document.getElementById('state').textContent = 'Produk tidak ditemukan.'; return; }
+        show(p);
+      } catch (e) { document.getElementById('state').textContent = 'Gagal memuat produk. Pastikan server berjalan.'; }
+    }
+    updateCount(); load();
+  </script>
+</body>
+</html>

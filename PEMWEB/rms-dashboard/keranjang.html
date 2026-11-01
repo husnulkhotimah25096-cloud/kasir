@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keranjang - Toko Kami</title>
+  <style>
+    :root { --bg:#fdf2f8; --card:#fff; --text:#3b0a24; --muted:#8a5a73; --pink:#ec4899; --pink-dark:#be185d; --pink-soft:#fce7f3; --ok:#15803d; --bad:#b91c1c; }
+    @media (prefers-color-scheme: dark) { :root { --bg:#200915; --card:#2e1220; --text:#fce7f3; --muted:#d6a3bd; --pink:#f472b6; --pink-dark:#ec4899; --pink-soft:#4a1d33; --ok:#4ade80; --bad:#f87171; } }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--text); }
+    a { color:inherit; text-decoration:none; }
+    header { background:linear-gradient(90deg,#ec4899,#f472b6); color:#fff; }
+    .bar { max-width:900px; margin:0 auto; padding:.75rem 1.25rem; display:flex; align-items:center; justify-content:space-between; }
+    .brand { font-size:1.3rem; font-weight:800; }
+    main { max-width:900px; margin:0 auto; padding:1.25rem; }
+    h1 { font-size:1.3rem; margin:.25rem 0 1rem; }
+    .row { display:grid; grid-template-columns:72px 1fr auto auto; gap:.9rem; align-items:center; background:var(--card); border-radius:14px; padding:.75rem; margin-bottom:.75rem; box-shadow:0 2px 8px rgba(0,0,0,.08); }
+    .row .thumb { width:72px; height:72px; border-radius:10px; background:var(--pink-soft); overflow:hidden; display:flex; align-items:center; justify-content:center; font-size:1.8rem; font-weight:700; color:var(--pink); }
+    .row .thumb img { width:100%; height:100%; object-fit:cover; }
+    .name { font-weight:600; } .unit { color:var(--muted); font-size:.85rem; }
+    .qty { display:flex; align-items:center; gap:.4rem; }
+    .qty button { width:30px; height:30px; border:1px solid var(--pink-soft); background:var(--card); color:var(--text); border-radius:8px; cursor:pointer; font-size:1rem; }
+    .qty span { min-width:26px; text-align:center; font-weight:700; }
+    .line { font-weight:700; color:var(--pink-dark); text-align:right; min-width:90px; }
+    .del { border:0; background:none; color:var(--bad); cursor:pointer; font-size:.8rem; margin-top:.2rem; }
+    .gone { color:var(--bad); font-size:.8rem; }
+    .sum { background:var(--card); border-radius:14px; padding:1rem; margin-top:1rem; box-shadow:0 2px 8px rgba(0,0,0,.08); }
+    .sum .t { display:flex; justify-content:space-between; font-size:1.15rem; font-weight:800; }
+    .hint { color:var(--muted); font-size:.85rem; margin:.4rem 0 .9rem; }
+    .go { display:block; text-align:center; padding:.85rem; border-radius:10px; background:var(--pink); color:#fff; font-weight:700; }
+    .go.off { background:var(--muted); opacity:.5; pointer-events:none; }
+    .state { text-align:center; color:var(--muted); padding:2rem 0; }
+    @media (max-width:600px) { .row { grid-template-columns:56px 1fr; } .row .thumb { width:56px; height:56px; } .line { text-align:left; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="bar"><a class="brand" href="katalog.html">Toko Kami</a><a href="katalog.html">← Lanjut belanja</a></div>
+  </header>
+  <main>
+    <h1>Keranjang Belanja</h1>
+    <div id="list"></div>
+    <p id="state" class="state">Memuat keranjang...</p>
+    <div id="sum" class="sum" hidden>
+      <div class="t"><span>Subtotal</span><span id="subtotal">Rp 0</span></div>
+      <p class="hint" id="hint">Ongkir dihitung saat checkout.</p>
+      <a id="go" class="go" href="checkout.html">Lanjut ke Checkout</a>
+    </div>
+  </main>
+
+  <script>
+    const API = 'http://localhost:8000/api/v1';
+    const FREE_SHIP = 50000;
+    const rupiah = (n) => 'Rp ' + new Intl.NumberFormat('id-ID').format(n);
+    let products = [];
+
+    function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+    function getCart() { try { const c = JSON.parse(localStorage.getItem('rms_cart')); return Array.isArray(c) ? c : []; } catch { return []; } }
+    function saveCart(c) { try { localStorage.setItem('rms_cart', JSON.stringify(c)); } catch {} render(); }
+
+    function render() {
+      const cart = getCart();
+      const list = document.getElementById('list');
+      list.replaceChildren();
+      const state = document.getElementById('state');
+      const sum = document.getElementById('sum');
+
+      if (!cart.length) { state.textContent = 'Keranjangmu masih kosong.'; sum.hidden = true; return; }
+      state.textContent = '';
+      let subtotal = 0, buyable = 0;
+
+      for (const item of cart) {
+        const p = products.find((x) => x.id === item.id);
+        const row = el('div', 'row');
+        const thumb = el('div', 'thumb');
+        if (p && p.image) {
+          const img = document.createElement('img'); img.src = p.image; img.alt = p.name;
+          img.onerror = () => thumb.replaceChildren(document.createTextNode(p.name.charAt(0)));
+          thumb.appendChild(img);
+        } else { thumb.textContent = p ? p.name.charAt(0).toUpperCase() : '?'; }
+
+        const info = el('div');
+        info.appendChild(el('div', 'name', p ? p.name : 'Produk tidak tersedia'));
+        if (p) info.appendChild(el('div', 'unit', rupiah(p.price) + ' / item'));
+        if (!p || !p.available) info.appendChild(el('div', 'gone', 'Stok habis, tidak ikut dihitung'));
+        const del = el('button', 'del', 'Hapus'); del.type = 'button';
+        del.addEventListener('click', () => saveCart(getCart().filter((i) => i.id !== item.id)));
+        info.appendChild(del);
+
+        const q = el('div', 'qty');
+        const minus = el('button', null, '−'); minus.type = 'button';
+        const plus = el('button', null, '+'); plus.type = 'button';
+        minus.addEventListener('click', () => { const c = getCart(); const r = c.find((i) => i.id === item.id); if (r) r.qty = Math.max(1, r.qty - 1); saveCart(c); });
+        plus.addEventListener('click', () => { const c = getCart(); const r = c.find((i) => i.id === item.id); if (r) r.qty = Math.min(50, r.qty + 1); saveCart(c); });
+        q.append(minus, el('span', null, String(item.qty)), plus);
+
+        const ok = p && p.available;
+        const line = ok ? p.price * item.qty : 0;
+        if (ok) { subtotal += line; buyable += 1; }
+        row.append(thumb, info, q, el('div', 'line', ok ? rupiah(line) : '-'));
+        list.appendChild(row);
+      }
+
+      sum.hidden = false;
+      document.getElementById('subtotal').textContent = rupiah(subtotal);
+      document.getElementById('hint').textContent = subtotal >= FREE_SHIP
+        ? 'Selamat, kamu mendapat gratis ongkir!'
+        : 'Belanja ' + rupiah(FREE_SHIP - subtotal) + ' lagi untuk gratis ongkir. Ongkir dihitung saat checkout.';
+      document.getElementById('go').classList.toggle('off', buyable === 0);
+    }
+
+    async function load() {
+      try {
+        const res = await fetch(API + '/public/products');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        products = await res.json();
+        render();
+      } catch (e) { document.getElementById('state').textContent = 'Gagal memuat keranjang. Pastikan server berjalan.'; }
+    }
+    load();
+  </script>
+</body>
+</html>
