@@ -26,6 +26,7 @@ import * as Inventory from './modules/inventory.js';
 import * as Finance from './modules/finance.js';
 import * as Procurement from './modules/procurement.js';
 import * as EventLogs from './modules/event-logs.js';
+import * as OnlineOrders from './modules/online-orders.js';
 import { showLogin, setupAccountMenu } from './modules/login.js';
 import { logout } from './utils/auth.js';
 
@@ -370,6 +371,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   setupTabNavigation();
+  OnlineOrders.initOnlineOrders();
   setupOnlineOfflineHandling();
   setupPeriodFilter();
   renderTabContent(currentTab);

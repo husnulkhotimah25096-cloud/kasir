@@ -12,6 +12,7 @@ import { inventoryRoutes } from './src/inventory.routes.mjs';
 import { salesRoutes } from './src/sales.routes.mjs';
 import { dashboardRoutes } from './src/dashboard.routes.mjs';
 import { publicRoutes } from './src/public.routes.mjs';
+import { onlineOrderRoutes } from './src/online-orders.routes.mjs';
 
 export const prisma = new PrismaClient();
 const app = express();
@@ -34,6 +35,7 @@ api.use('/auth', authRoutes(prisma));
 api.use(publicRoutes(prisma));
 api.use(inventoryRoutes(prisma));
 api.use(salesRoutes(prisma));
+api.use(onlineOrderRoutes(prisma));
 api.use(dashboardRoutes(prisma));
 app.use('/api/v1', api);
 
