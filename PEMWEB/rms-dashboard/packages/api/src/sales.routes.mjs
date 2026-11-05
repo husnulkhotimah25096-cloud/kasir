@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { randomUUID, randomBytes } from 'node:crypto';
 import pkg from '@prisma/client';
 import { requireAuth, requireRole } from './auth.mjs';
+import { postOrderSaleJournal } from './journal.mjs';
 
 const { OrderStatus, PaymentStatus } = pkg;
 const httpErr = (status, message) => Object.assign(new Error(message), { status });
@@ -74,6 +75,7 @@ async function createSale(prisma, userId, data, key) {
           Payment: { create: data.payments.map((p) => ({ amount: p.amount, paymentMethod: p.method.toUpperCase(), gateway: 'POS', status: paid, paidAt: when })) },
         },
       });
+            await postOrderSaleJournal(tx, order.id, userId, when);
       return { id: order.id, duplicate: false };
     });
   } catch (e) {

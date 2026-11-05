@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { requireAuth, requireRole } from './auth.mjs';
+import { postReceiptJournal } from './journal.mjs';
 
 const httpErr = (status, message) => Object.assign(new Error(message), { status });
 const num = (d) => (d == null ? 0 : Number(d));
@@ -218,6 +219,7 @@ export function procurementRoutes(prisma) {
           where: { id: gr.purchaseOrderId },
           data: { status: 'RECEIVED', received: true, receivedAt: new Date() },
         });
+        await postReceiptJournal(tx, id, req.user.id, false);
       });
       res.json({ message: 'Barang diterima, stok diperbarui' });
     } catch (e) { next(e); }
@@ -250,6 +252,7 @@ export function procurementRoutes(prisma) {
           where: { id: gr.purchaseOrderId },
           data: { status: 'APPROVED', received: false, receivedAt: null },
         });
+        await postReceiptJournal(tx, id, req.user.id, true);
       });
       res.json({ message: 'Retur berhasil, stok dikurangi' });
     } catch (e) { next(e); }

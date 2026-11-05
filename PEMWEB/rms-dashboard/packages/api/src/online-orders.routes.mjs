@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { requireAuth, requireRole } from './auth.mjs';
+import { postOrderSaleJournal } from './journal.mjs';
 
 const httpErr = (status, message) => Object.assign(new Error(message), { status });
 const STATUSES = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'COMPLETED', 'CANCELLED'];
@@ -71,6 +72,7 @@ export function onlineOrderRoutes(prisma) {
           where: { orderId: id, status: 'PENDING' },
           data: { status: 'PAID', paidAt: new Date() },
         });
+        await postOrderSaleJournal(tx, id, req.user.id);
       });
       res.json(await fresh(id));
     } catch (e) { next(e); }

@@ -94,6 +94,7 @@ async function main() {
     ['1300', 'Piutang Usaha', 'ASSET', 'ACCOUNTS_RECEIVABLE'],
     ['1400', 'Persediaan Barang', 'ASSET', null],
     ['2100', 'Hutang Usaha', 'LIABILITY', 'ACCOUNTS_PAYABLE'],
+    ['2200', 'Hutang PPN', 'LIABILITY', null],
     ['3100', 'Modal Pemilik', 'EQUITY', null],
     ['4100', 'Penjualan', 'INCOME', 'SALES'],
     ['5100', 'Harga Pokok Penjualan', 'EXPENSE', 'COGS'],

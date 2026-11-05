@@ -14,6 +14,7 @@ import { dashboardRoutes } from './src/dashboard.routes.mjs';
 import { publicRoutes } from './src/public.routes.mjs';
 import { onlineOrderRoutes } from './src/online-orders.routes.mjs';
 import { procurementRoutes } from './src/procurement.routes.mjs';
+import { financeRoutes } from './src/finance.routes.mjs';
 
 export const prisma = new PrismaClient();
 const app = express();
@@ -39,6 +40,7 @@ api.use(salesRoutes(prisma));
 api.use(onlineOrderRoutes(prisma));
 api.use(dashboardRoutes(prisma));
 api.use(procurementRoutes(prisma));
+api.use(financeRoutes(prisma));
 app.use('/api/v1', api);
 
 app.use((_req, res) => res.status(404).json({ message: 'Endpoint tidak ditemukan' }));
