@@ -10,7 +10,7 @@ function mapProduct(p) {
   for (const v of p.variants) {
     for (const s of v.Stock) stock.push({ warehouseId: s.warehouseId, quantity: s.quantity, version: s.version });
   }
-  return { id: p.id, sku: p.sku, name: p.name, price: num(p.price), cost: num(p.cost), minStock: 0, stock };
+  return { id: p.id, sku: p.sku, name: p.name, price: num(p.price), cost: num(p.cost), minStock: 10, stock };
 }
 
 const include = { variants: { include: { Stock: true }, orderBy: { id: 'asc' } } };
