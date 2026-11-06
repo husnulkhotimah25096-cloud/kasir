@@ -1,0 +1,5 @@
+   {
+     "redirects": [
+       { "source": "/", "destination": "/katalog.html", "permanent": false }
+     ]
+   }
