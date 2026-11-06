@@ -16,8 +16,8 @@ const orderSchema = z.object({
   name: z.string().trim().min(2).max(100),
   phone: z.string().trim().regex(/^[0-9+\-\s]{8,20}$/, 'Nomor telepon tidak valid'),
   fulfillment: z.enum(['AMBIL', 'ANTAR']),
-  address: z.string().trim().max(300).default(''),
-  note: z.string().trim().max(200).default(''),
+  address: z.string().trim().max(110).default(''),
+  note: z.string().trim().max(30).default(''),
   paymentMethod: z.enum(['CASH', 'TRANSFER', 'QRIS']),
   idempotencyKey: z.string().min(8).max(100).optional(),
 });

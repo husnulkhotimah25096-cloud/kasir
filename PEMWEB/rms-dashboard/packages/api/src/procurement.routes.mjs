@@ -229,7 +229,7 @@ export function procurementRoutes(prisma) {
   r.post('/goods-receipts/:id/return', requireAuth, receive, async (req, res, next) => {
     try {
       const id = idOf(req);
-      const p = z.object({ reason: z.string().trim().min(3).max(200) }).safeParse(req.body);
+      const p = z.object({ reason: z.string().trim().min(3).max(150) }).safeParse(req.body);
       if (!p.success) throw httpErr(400, 'Alasan retur minimal 3 karakter');
       await prisma.$transaction(async (tx) => {
         const gr = await tx.goodsReceipt.findUnique({ where: { id }, include: { grItems: true } });
